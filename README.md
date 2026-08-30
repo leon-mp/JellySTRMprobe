@@ -50,14 +50,14 @@ All settings are accessible from Dashboard > Plugins > JellySTRMprobe:
 1. In Jellyfin, go to **Dashboard > Plugins > Repositories**
 2. Add repository URL:
    ```
-   https://firestaerter3.github.io/jellyfin-plugin-repo/manifest.json
+   https://leon-mp.github.io/JellySTRMprobe/repository.json
    ```
 3. Go to **Catalog**, find **JellySTRMprobe**, and install
 4. Restart Jellyfin
 
 ### Manual Installation
 
-1. Download the latest release from [Releases](https://github.com/firestaerter3/JellySTRMprobe/releases)
+1. Download the latest release from [Releases](../../releases)
 2. Extract `JellySTRMprobe.dll` to your Jellyfin plugins directory:
    ```
    <jellyfin-data>/plugins/JellySTRMprobe/JellySTRMprobe.dll
