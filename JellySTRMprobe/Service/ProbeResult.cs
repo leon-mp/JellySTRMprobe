@@ -19,6 +19,11 @@ public class ProbeResult
     public int Failed { get; init; }
 
     /// <summary>
+    /// Gets the number of items skipped.
+    /// </summary>
+    public int Skipped { get; init; }
+
+    /// <summary>
     /// Gets the list of items that failed to probe.
     /// </summary>
     public IReadOnlyList<BaseItem> FailedItems { get; init; } = [];

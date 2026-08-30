@@ -114,8 +114,9 @@ public class ProbeStrmTask : IScheduledTask, IConfigurableScheduledTask
         }
 
         _logger.LogInformation(
-            "STRM probe task finished: {Probed} probed, {Failed} failed",
+            "STRM probe task finished: {Probed} probed, {Failed} failed, {Skipped} skipped",
             result.Probed,
-            result.Failed);
+            result.Failed,
+            result.Skipped);
     }
 }

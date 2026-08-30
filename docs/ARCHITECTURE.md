@@ -122,14 +122,15 @@ ProbeStrmTask.ExecuteAsync()
     │   ├─ Parallel.ForEachAsync(parallelism) controls concurrency
     │   ├─ For each item (in parallel):
     │   │   ├─ ProbeService.ProbeItemCoreAsync(item, timeout, directoryService)
+    │   │   │   ├─ Revalidate the item ID before each probe
     │   │   │   ├─ CancellationTokenSource with timeout
     │   │   │   ├─ IProviderManager.RefreshSingleItem(item, options)
     │   │   │   │   └─ Jellyfin internally runs ffprobe
-    │   │   │   └─ Returns success/failure
-    │   │   ├─ Increment probed/failed counter
+    │   │   │   └─ Returns succeeded/failed/skipped
+    │   │   ├─ Increment probed/failed/skipped counter
     │   │   ├─ Report progress
     │   │   └─ Cooldown delay
-    │   └─ Return (probed, failed)
+    │   └─ Return (probed, failed, skipped)
     │
     └─ Log results
 ```
@@ -205,6 +206,7 @@ The config page is embedded as a resource and registered via `IHasWebPages`. It 
 |-------|----------|----------|
 | ffprobe timeout | `CancellationTokenSource.CancelAfter()` | Log warning, skip item, retry next run |
 | ffprobe failure (bad URL, 404) | Catch `Exception` in `ProbeItemAsync` | Log warning, skip item, retry next run |
+| Item removed during batch | Repository-backed ID query before persistence | Count as skipped; do not call the provider or delete its STRM |
 | Task cancellation | `OperationCanceledException` propagates | Task stops cleanly, resume on next run |
 | Plugin not initialized | Check `Plugin.Instance` | Return early from task/catch-up |
 | No items to probe | Early exit with 100% progress | No-op |

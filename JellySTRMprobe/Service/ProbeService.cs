@@ -107,7 +107,8 @@ public class ProbeService : IProbeService
     public async Task<bool> ProbeItemAsync(BaseItem item, int timeoutSeconds, CancellationToken cancellationToken)
     {
         var directoryService = new DirectoryService(_fileSystem);
-        return await ProbeItemCoreAsync(item, timeoutSeconds, directoryService, cancellationToken).ConfigureAwait(false);
+        return await ProbeItemCoreAsync(item, timeoutSeconds, directoryService, cancellationToken).ConfigureAwait(false)
+            == ProbeStatus.Succeeded;
     }
 
     /// <inheritdoc />
@@ -127,6 +128,7 @@ public class ProbeService : IProbeService
 
         var probed = 0;
         var failed = 0;
+        var skipped = 0;
         var processed = 0;
         var failedItems = new ConcurrentBag<BaseItem>();
         var directoryService = new DirectoryService(_fileSystem);
@@ -140,16 +142,20 @@ public class ProbeService : IProbeService
             },
             async (item, ct) =>
             {
-                var success = await ProbeItemCoreAsync(item, timeoutSeconds, directoryService, ct).ConfigureAwait(false);
+                var status = await ProbeItemCoreAsync(item, timeoutSeconds, directoryService, ct).ConfigureAwait(false);
 
-                if (success)
+                switch (status)
                 {
-                    Interlocked.Increment(ref probed);
-                }
-                else
-                {
-                    Interlocked.Increment(ref failed);
-                    failedItems.Add(item);
+                    case ProbeStatus.Succeeded:
+                        Interlocked.Increment(ref probed);
+                        break;
+                    case ProbeStatus.Failed:
+                        Interlocked.Increment(ref failed);
+                        failedItems.Add(item);
+                        break;
+                    case ProbeStatus.Skipped:
+                        Interlocked.Increment(ref skipped);
+                        break;
                 }
 
                 var current = Interlocked.Increment(ref processed);
@@ -162,15 +168,17 @@ public class ProbeService : IProbeService
             }).ConfigureAwait(false);
 
         _logger.LogInformation(
-            "Probe complete: {Probed} succeeded, {Failed} failed out of {Total}",
+            "Probe complete: {Probed} succeeded, {Failed} failed, {Skipped} skipped out of {Total}",
             probed,
             failed,
+            skipped,
             items.Count);
 
         return new ProbeResult
         {
             Probed = probed,
             Failed = failed,
+            Skipped = skipped,
             FailedItems = failedItems.ToArray(),
         };
     }
@@ -205,7 +213,7 @@ public class ProbeService : IProbeService
         return deleted;
     }
 
-    private async Task<bool> ProbeItemCoreAsync(
+    private async Task<ProbeStatus> ProbeItemCoreAsync(
         BaseItem item,
         int timeoutSeconds,
         DirectoryService directoryService,
@@ -216,6 +224,12 @@ public class ProbeService : IProbeService
 
         try
         {
+            if (!IsItemStillPresent(item.Id))
+            {
+                _logger.LogDebug("Skipping probe for {ItemName} ({ItemId}): item no longer exists", item.Name, item.Id);
+                return ProbeStatus.Skipped;
+            }
+
             var refreshOptions = new MetadataRefreshOptions(directoryService)
             {
                 EnableRemoteContentProbe = true,
@@ -227,7 +241,15 @@ public class ProbeService : IProbeService
             if (await TryDirectProbeAsync(item, refreshOptions, timeoutCts.Token).ConfigureAwait(false))
             {
                 _logger.LogDebug("Successfully probed {ItemName} ({ItemId}) via direct probe", item.Name, item.Id);
-                return true;
+                return ProbeStatus.Succeeded;
+            }
+
+            // Direct probing may have taken long enough for a concurrent library
+            // cleanup to remove the item. Revalidate before the fallback can persist.
+            if (!IsItemStillPresent(item.Id))
+            {
+                _logger.LogDebug("Skipping probe for {ItemName} ({ItemId}): item no longer exists", item.Name, item.Id);
+                return ProbeStatus.Skipped;
             }
 
             // Fallback: use the full refresh pipeline (includes TMDb re-fetch).
@@ -238,12 +260,12 @@ public class ProbeService : IProbeService
             await _providerManager.RefreshSingleItem(item, refreshOptions, timeoutCts.Token).ConfigureAwait(false);
 
             _logger.LogDebug("Successfully probed {ItemName} ({ItemId}) via full refresh fallback", item.Name, item.Id);
-            return true;
+            return ProbeStatus.Succeeded;
         }
         catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested)
         {
             _logger.LogWarning("Probe timed out for {ItemName} ({ItemId}) after {Timeout}s", item.Name, item.Id, timeoutSeconds);
-            return false;
+            return ProbeStatus.Failed;
         }
         catch (OperationCanceledException)
         {
@@ -252,8 +274,22 @@ public class ProbeService : IProbeService
         catch (Exception ex)
         {
             _logger.LogWarning(ex, "Probe failed for {ItemName} ({ItemId})", item.Name, item.Id);
-            return false;
+            return ProbeStatus.Failed;
         }
+    }
+
+    private bool IsItemStillPresent(Guid itemId)
+    {
+        // GetItemById can return Jellyfin's cached item while bulk deletion has
+        // already removed its database row. Query the repository-backed ID list.
+        var query = new InternalItemsQuery
+        {
+            ItemIds = [itemId],
+            Limit = 1,
+            EnableTotalRecordCount = false,
+        };
+
+        return _libraryManager.GetItemIds(query).Count != 0;
     }
 
     private async Task<bool> TryDirectProbeAsync(

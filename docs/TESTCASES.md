@@ -42,6 +42,8 @@
 | TC-1.3.5 | Applies cooldown between probes | 3 items, cooldown=100ms | Total time >= 300ms (3 * 100ms cooldown) |
 | TC-1.3.6 | Cancellation stops batch processing | Cancel after 2nd item | Returns partial results, no more probes |
 | TC-1.3.7 | Empty list returns zero counts | 0 items | (Probed=0, Failed=0, Skipped=0) |
+| TC-1.3.8 | Skips an item removed after batch discovery | Item ID is absent from the current database query | (Probed=0, Failed=0, Skipped=1) |
+| TC-1.3.9 | Revalidates before the fallback persistence path | Item exists initially, then is removed while probing | (Probed=0, Failed=0, Skipped=1) |
 
 ### 2. ProbeStrmTask Tests
 
@@ -95,7 +97,7 @@ These tests require a running Jellyfin instance with STRM files.
 | 2 | Navigate to Dashboard > Scheduled Tasks | "Probe STRM Media Info" task visible under "STRM Probe" category |
 | 3 | Click Run on the task | Task starts, progress bar advances |
 | 4 | Check Jellyfin logs | "Found N unprobed STRM items" logged |
-| 5 | Wait for completion | "Probe complete: X succeeded, Y failed" logged |
+| 5 | Wait for completion | "Probe complete: X succeeded, Y failed, Z skipped" logged |
 | 6 | Check a probed movie in Jellyfin UI | Duration, resolution, codec, audio channels visible |
 
 ### IT-2: Catch-up Mode

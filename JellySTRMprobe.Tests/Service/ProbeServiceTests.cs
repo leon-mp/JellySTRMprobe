@@ -31,6 +31,10 @@ public class ProbeServiceTests
         _mockFileSystem = new Mock<IFileSystem>();
         _mockLogger = new Mock<ILogger<ProbeService>>();
 
+        _mockLibraryManager
+            .Setup(l => l.GetItemIds(It.Is<InternalItemsQuery>(q => q.ItemIds.Length > 0)))
+            .Returns((InternalItemsQuery query) => query.ItemIds);
+
         _probeService = new ProbeService(
             _mockProviderManager.Object,
             _mockLibraryManager.Object,
@@ -179,6 +183,7 @@ public class ProbeServiceTests
 
         result.Probed.Should().Be(5);
         result.Failed.Should().Be(0);
+        result.Skipped.Should().Be(0);
         result.FailedItems.Should().BeEmpty();
     }
 
@@ -218,7 +223,59 @@ public class ProbeServiceTests
 
         result.Probed.Should().Be(3);
         result.Failed.Should().Be(2);
+        result.Skipped.Should().Be(0);
         result.FailedItems.Should().HaveCount(2);
+    }
+
+    [Fact]
+    public async Task ProbeBatchAsync_RemovedItem_SkipsWithoutProbing()
+    {
+        var item = CreateMockItem("Removed Movie", "/media/removed.strm");
+        _mockLibraryManager
+            .Setup(l => l.GetItemIds(It.Is<InternalItemsQuery>(q =>
+                q.ItemIds.Length == 1 && q.ItemIds[0] == item.Id)))
+            .Returns(Array.Empty<Guid>());
+        var progress = new Progress<double>();
+
+        var result = await _probeService.ProbeBatchAsync(
+            [item], 1, 60, 0, progress, CancellationToken.None);
+
+        result.Probed.Should().Be(0);
+        result.Failed.Should().Be(0);
+        result.Skipped.Should().Be(1);
+        result.FailedItems.Should().BeEmpty();
+        _mockProviderManager.Verify(
+            p => p.RefreshSingleItem(
+                It.IsAny<BaseItem>(),
+                It.IsAny<MetadataRefreshOptions>(),
+                It.IsAny<CancellationToken>()),
+            Times.Never);
+    }
+
+    [Fact]
+    public async Task ProbeBatchAsync_ItemRemovedBeforeFallback_SkipsWithoutRefreshing()
+    {
+        var item = CreateMockItem("Removed During Probe", "/media/removed-during-probe.strm");
+        _mockLibraryManager
+            .SetupSequence(l => l.GetItemIds(It.Is<InternalItemsQuery>(q =>
+                q.ItemIds.Length == 1 && q.ItemIds[0] == item.Id)))
+            .Returns([item.Id])
+            .Returns([]);
+        var progress = new Progress<double>();
+
+        var result = await _probeService.ProbeBatchAsync(
+            [item], 1, 60, 0, progress, CancellationToken.None);
+
+        result.Probed.Should().Be(0);
+        result.Failed.Should().Be(0);
+        result.Skipped.Should().Be(1);
+        result.FailedItems.Should().BeEmpty();
+        _mockProviderManager.Verify(
+            p => p.RefreshSingleItem(
+                It.IsAny<BaseItem>(),
+                It.IsAny<MetadataRefreshOptions>(),
+                It.IsAny<CancellationToken>()),
+            Times.Never);
     }
 
     [Fact]
@@ -366,6 +423,7 @@ public class ProbeServiceTests
 
         result.Probed.Should().Be(0);
         result.Failed.Should().Be(0);
+        result.Skipped.Should().Be(0);
         result.FailedItems.Should().BeEmpty();
     }
 

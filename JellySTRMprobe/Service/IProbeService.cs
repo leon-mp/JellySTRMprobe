@@ -36,7 +36,7 @@ public interface IProbeService
     /// <param name="cooldownMs">Cooldown in milliseconds between probes per worker.</param>
     /// <param name="progress">Progress reporter (0-100).</param>
     /// <param name="cancellationToken">Cancellation token.</param>
-    /// <returns>A <see cref="ProbeResult"/> with counts and failed items.</returns>
+    /// <returns>A <see cref="ProbeResult"/> with success, failure, skipped counts and failed items.</returns>
     Task<ProbeResult> ProbeBatchAsync(
         IReadOnlyList<BaseItem> items,
         int parallelism,
