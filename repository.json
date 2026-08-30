@@ -1,1 +1,28 @@
-[]
+[
+  {
+    "category": "General",
+    "description": "JellySTRMprobe extracts media information from STRM file targets by probing\nremote streams. Jellyfin never probes STRM files during library scans — this\nplugin fills that gap.\n\nFeatures:\n- Scheduled task to probe all unprobed STRM items\n- Catch-up mode to auto-probe new STRM items as they are added\n- Configurable parallelism, timeout, and cooldown\n- Per-library selection for targeted probing\n\nThis plugin is designed to work alongside Xtream Library or any other STRM\nfile generator.\n",
+    "guid": "b8f5e3a1-d4c7-4f2e-9a6b-1c8d3e5f7a9b",
+    "name": "JellySTRMprobe",
+    "overview": "Probe STRM files to extract media info (codec, resolution, duration, audio)",
+    "owner": "firestaerter3",
+    "versions": [
+      {
+        "changelog": "**Full Changelog**: https://github.com/leon-mp/JellySTRMprobe/compare/v1.2.0.0-alpha...v1.2.0.1-alpha",
+        "checksum": "f54b3971f30f4d2c5d7c3a7005d1c10f",
+        "sourceUrl": "https://github.com/leon-mp/JellySTRMprobe/releases/download/v1.2.0.1-alpha/jellystrmprobe_1.2.0.0.zip",
+        "targetAbi": "10.11.0.0",
+        "timestamp": "2026-08-30T21:17:05Z",
+        "version": "1.2.0.0"
+      },
+      {
+        "changelog": "**Full Changelog**: https://github.com/leon-mp/JellySTRMprobe/commits/v1.2.0.0-alpha",
+        "checksum": "86e2258191c7eecfd1a7008660d6c48c",
+        "sourceUrl": "https://github.com/leon-mp/JellySTRMprobe/releases/download/v1.2.0.0-alpha/jellystrmprobe_1.2.0.0.zip",
+        "targetAbi": "10.11.0.0",
+        "timestamp": "2026-08-30T20:53:42Z",
+        "version": "1.2.0.0"
+      }
+    ]
+  }
+]
